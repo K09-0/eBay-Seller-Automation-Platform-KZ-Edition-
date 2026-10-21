@@ -1,0 +1,39 @@
+name: Build Android APK (Free Cloud Builder)
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build Debug APK with Gradle 8.7
+        run: |
+          yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null 2>&1 || true
+          curl -sL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /tmp
+          /tmp/gradle-8.7/bin/gradle assembleDebug --no-daemon --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/eBay-KZ-AutoLister.apk
+
+      - name: Upload APK to Actions Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: eBay-KZ-Seller-Automation-APK
+          path: app/build/outputs/apk/debug/eBay-KZ-AutoLister.apk
+
+      - name: Publish Direct APK to GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest-apk --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest-apk app/build/outputs/apk/debug/eBay-KZ-AutoLister.apk --title "Готовый APK: eBay KZ AutoLister (Android)" --notes "Скачайте eBay-KZ-AutoLister.apk ниже прямо на смартфон и нажмите Установить." || true
