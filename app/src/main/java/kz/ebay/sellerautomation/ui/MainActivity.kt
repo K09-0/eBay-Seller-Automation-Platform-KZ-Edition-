@@ -588,25 +588,167 @@ viewModelScope.launch {
 busy.value = true; pubRes.value = null; banner.value = "1/3: Мульти-угловой OCR всех фото (0°/90°/270°)..."
 val o = if (cur.isNotEmpty()) VisionOcrService.runOcrAll(cur) else OcrInfo(); ocr.value = o
 val seed = listOfNotNull(userHint.value.takeIf { it.isNotBlank() }, o.brand, o.model, o.pn, o.raw.lines().firstOrNull()?.take(30)).joinToString(" ").trim()
-banner.value = "2/3: Поиск реальных лотов и цен на eBay..."
-val .\\-].runOaCEMENS,SONS,SONS,SON"
-vEMEsd.value,         nph.id)
-photle: String, defo(); ocr.vg, specs: Map<String, String>, shipName: String): String {
-val roNS,SONS,SON"
-roN "; val p = (android.graphics.Color.re) }
-f* 1.0^OU, o.raw.li: Produntext, ph: PrLimics.�я (RU-+ gx; ps+ ing(" ").entoryF)о." }
-fpмедаль:Medagн нph: Proir(p[          dx.composecsed(ProductPhoto(id, Uri.fromFitos.qo(dy in -2..2) for (dx in -2).2) {
-val v = m[(gy + dy) * gw + gx + dx]
-if (dil && v) res = true else if (!dil && !v) res = false
+val st = NetworkEngines.findPricesAndTitles(seed.ifBlank { "OEM" })
+market.value = st; priceUsd.value = st.rec
+val p0 = cur.firstOrNull()?.origPath ?: ""
+val ai = NetworkEngines.analyzeAi(p0, o, userHint.value, st, ship.value.name, cfg.value)
+specs.value = linkedMapOf(
+"Brand" to ai.optString("brand", o.brand ?: "OEM"),
+"Model" to ai.optString("model", o.model ?: ""),
+"MPN" to ai.optString("part_number", o.pn ?: "N/A")
+)
+regenerateFromFields()
+descRu.value = ai.optString("description_ru", descRu.value)
+descEn.value = ai.optString("description_en", descEn.value)
+recalc(); busy.value = false
 }
-out[gy * gw + gx] = res
 }
-return out
+fun publishNow() {
+viewModelScope.launch {
+busy.value = true
+val h = KzEngines.buildHtml(title.value, descEn.value, specs.value, ship.value.name)
+pubRes.value = NetworkEngines.publish(
+sku.value, title.value, h, cond.value, specs.value, priceUsd.value, cfg.value
+)
+banner.value = pubRes.value?.msg; busy.value = false
 }
-val fgClosed = morph(morph(fgRaw, true), false)
-val isExt = BooleanArray(gw * gh)
-val q = IntArray(gw * gh); var qh = 0; var qt =J0
-for (gx in 0 until gwdelScope
-import true; q[ t++] =NgleStateFlow(mapOf("Brand" to "OEM�ԓvar qh sph.id)
-photle: String(ctx:Context, urts: List<Uescript.0^OU, o�rawlank() }, o.brand, o.model, o.pn, o.raw.lines().firstOrNull()?.tmd>)9efresh_token=$ { ival ;erentTi                       * gh); var qh = 0;.vlges", m(FilableListOf<Doubl"MPN; vil titl#s ax(1, = userH4ntScope
- 
+}
+}
+class MainActivity : ComponentActivity() {
+override fun onCreate(s: Bundle?) {
+super.onCreate(s)
+setContent { MaterialTheme { MainAppScreen() } }
+}
+}
+@Composable fun <T> MutableStateFlow<T>.s() = collectAsState().value
+@Composable fun Tf(v: String, l: String, s: Boolean = true, onC: (String) -> Unit) =
+OutlinedTextField(
+value = v, onValueChange = onC, label = { Text(l) },
+singleLine = s, modifier = Modifier.fillMaxWidth()
+)
+@Composable fun Btn(
+t: String, en: Boolean = true, m: Modifier = Modifier.fillMaxWidth(), fn: () -> Unit
+) = Button(onClick = fn, enabled = en, modifier = m) { Text(t, fontSize = 11.sp) }
+@Composable fun Rw(c: @Composable RowScope.() -> Unit) = Row(
+modifier = Modifier.fillMaxWidth(),
+horizontalArrangement = Arrangement.SpaceBetween,
+verticalAlignment = Alignment.CenterVertically,
+content = c
+)
+@Composable fun MainAppScreen(vm: MainViewModel = viewModel()) {
+val ctx = LocalContext.current
+LaunchedEffect(Unit) { vm.initPrefs(ctx) }
+val cfg = vm.cfg.s(); val lim = vm.limits.s()
+val photos = vm.photos.s(); val hint = vm.userHint.s(); val busy = vm.busy.s()
+fun up(c: AppConfig) = vm.updateCfg(ctx, c)
+var tab by remember { mutableStateOf(0) }
+var camU by remember { mutableStateOf<Uri?>(null) }
+val camL = rememberLauncherForActivityResult(
+ActivityResultContracts.TakePicture()
+) { if (it && camU != null) vm.addPhotos(ctx, listOf(camU!!)) }
+val galL = rememberLauncherForActivityResult(
+ActivityResultContracts.PickMultipleVisualMedia(12)
+) { if (it.isNotEmpty()) vm.addPhotos(ctx, it) }
+Column(
+modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(10.dp),
+verticalArrangement = Arrangement.spacedBy(8.dp)
+) {
+Rw {
+Text("eBay KZ v2 (${lim.remItems}/${lim.maxItems})", fontWeight = FontWeight.Bold)
+TextButton(onClick = {
+val nxt = if (cfg.env == EbayEnv.SANDBOX) EbayEnv.PRODUCTION else EbayEnv.SANDBOX
+up(cfg.copy(env = nxt))
+}) { Text(cfg.env.label) }
+}
+TabRow(selectedTabIndex = tab) {
+listOf("1.Фото", "2.Описание", "3.Почта", "4.Ключи").forEachIndexed { i, t ->
+Tab(selected = tab == i, onClick = { tab = i }, text = { Text(t, fontSize = 11.sp) })
+}
+}
+if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+vm.banner.s()?.let { Text(it, color = Color(0xFF0369A1), fontWeight = FontWeight.Bold) }
+when (tab) {
+0 -> {
+Rw {
+Btn("Камера", !busy, Modifier.weight(1f)) {
+val f = File(ctx.cacheDir, "c.jpg")
+camU = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", f)
+camL.launch(camU!!)
+}
+Spacer(Modifier.width(8.dp))
+Btn("Галерея", !busy, Modifier.weight(1f)) {
+galL.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+}
+}
+LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+itemsIndexed(photos) { i, p ->
+Card(modifier = Modifier.width(155.dp)) {
+Column(modifier = Modifier.padding(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+AsyncImage(
+model = p.uri, contentDescription = null, contentScale = ContentScale.Fit,
+modifier = Modifier.fillMaxWidth().height(100.dp)
+)
+Text("#${i + 1} ${p.modeLabel}", fontSize = 11.sp)
+Rw {
+Btn("Белый фон", !busy, Modifier.weight(1f)) { vm.makeWhiteBg(ctx, p) }
+Btn("Свет", !busy, Modifier.weight(1f)) { vm.makeStudioLight(ctx, p) }
+}
+Rw {
+Text("Ориг", modifier = Modifier.clickable { vm.restoreOrigPhoto(p) })
+Text("90°", modifier = Modifier.clickable { vm.rotatePhoto(ctx, p) })
+Text("X", color = Color.Red, modifier = Modifier.clickable { vm.deletePhoto(p) })
+}
+}
+}
+}
+}
+Tf(hint, "Подсказка (Часы Восток / Датчик)") { vm.userHint.value = it }
+Btn("Распознать товар и создать описание", !busy) { vm.runPipeline(); tab = 1 }
+}
+1 -> {
+val title = vm.title.s(); val ocr = vm.ocr.s(); val specs = vm.specs.s()
+Text("OCR: ${ocr.brand ?: "-"} | ${ocr.model ?: "-"} | ${ocr.pn ?: "-"}\n${ocr.raw}", fontSize = 12.sp)
+vm.market.s()?.let {
+Text("eBay (${it.count}): ${it.min} USD / ${it.med} USD / ${it.rec} USD", fontSize = 12.sp)
+}
+Tf(hint, "Уточнение по-русски") { vm.userHint.value = it }
+Btn("Пересобрать описание (RU + EN)", !busy) { vm.regenerateFromFields() }
+Tf(title, "Title (${title.length}/80)") { vm.title.value = it.take(80) }
+specs.forEach { (k, v) ->
+Tf(v, k) { val m = specs.toMutableMap(); m[k] = it; vm.specs.value = m }
+}
+Tf(vm.descRu.s(), "Описание RU", false) { vm.descRu.value = it }
+Tf(vm.descEn.s(), "Описание EN", false) { vm.descEn.value = it }
+vm.pubRes.s()?.let { Text("${it.msg} ${it.url}", fontWeight = FontWeight.Bold) }
+Btn("Опубликовать на eBay", !busy && title.isNotBlank()) { vm.publishNow() }
+}
+2 -> {
+val sh = vm.ship.s(); val fn = vm.fin.s()
+Tf(vm.priceUsd.s().toString(), "Цена USD") {
+it.toDoubleOrNull()?.let { v -> vm.priceUsd.value = v; vm.recalc() }
+}
+Tf(vm.weightG.s().toString(), "Вес (г)") {
+it.toIntOrNull()?.let { v -> vm.weightG.value = v; vm.recalc() }
+}
+Rw {
+Text("${sh.name}: ${sh.costUsd} USD  EMS:")
+Switch(checked = vm.isEms.s(), onCheckedChange = { vm.isEms.value = it; vm.recalc() })
+}
+Text("Прибыль: ${fn.netUsd} USD (${fn.netKzt.toInt()} KZT) | ${fn.margin}%", fontWeight = FontWeight.Bold)
+}
+3 -> {
+AiMode.values().forEach { m ->
+Rw {
+Text(m.title, fontSize = 12.sp)
+RadioButton(selected = cfg.ai == m, onClick = { up(cfg.copy(ai = m)) })
+}
+}
+Tf(cfg.geminiKey, "Gemini Key") { up(cfg.copy(geminiKey = it)) }
+Tf(cfg.ollamaUrl, "Ollama URL") { up(cfg.copy(ollamaUrl = it)) }
+Tf(cfg.clientId, "eBay ID") { up(cfg.copy(clientId = it)) }
+Tf(cfg.clientSecret, "eBay Secret") { up(cfg.copy(clientSecret = it)) }
+Tf(cfg.refreshToken, "eBay Token") { up(cfg.copy(refreshToken = it)) }
+}
+}
+}
+}
